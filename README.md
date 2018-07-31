@@ -1,4 +1,5 @@
 ---
+---
 title: "CCPEBaseline"
 output: html_document
 ---
@@ -17,6 +18,13 @@ library(ltm)
 library(prettyR)
 library(semTools)
 library(GPArotation)
+library(lavaan)
+library(psych)
+library(semTools)
+library(dplyr)
+library(ltm)
+library(lordif)
+library(Amelia)
 ```
 
 
@@ -27,7 +35,7 @@ Load data.  Just get the actual data for now don't worry about sub group analyse
 #CKY = read.csv("CKY HCS Dataset_07172018.csv", header = TRUE)
 head(CIL)
 CIL = cbind(CIL[c("good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
-head(CILTest)
+
 
 CKY = cbind(CKY[c("good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
 
@@ -42,24 +50,31 @@ CIL_CKY_Complete = na.omit(CIL_CKY)
 dim(CIL_CKY_Complete)
 
 ```
-Reliabiltiy
-```{r}
-omegaItems = omega(CIL_CKY); summary(omegaItems)
-```
-Parrell analyses
-```{r}
-parallel = fa.parallel(CIL_CKY, fa= "fa")
-parallel$fa.values
-```
-Exploratory Factor Analysis
-```{r}
-unrotated4 <- efaUnrotate(CIL_CKY, nf=4, estimator="mlr", missing = "ML")
-summary(unrotated4, std=TRUE)
-inspect(unrotated4, "std")
+Let us get some descriptives
 
-unrotated1 <- efaUnrotate(CIL_CKY, nf=1, estimator="mlr", missing = "ML")
+There is a rouge 0 and 7.  Probably should get rid of those.
+```{r}
+CIL_CKY = cbind(CIL_CKY[c("manage_health" , "manage_mhealth" ,"similar_goals" ,"no_concern_side_effects" ,"has_money_food" ,"health_friendly_home" , "has_transport" , "social_activity" , "has_money_for_health" , "ed_level_satisfaction")])
 
-anova(unrotated1, unrotated4)
+
+descriptivesCIL_CKY = apply(CIL_CKY, 2, function(x){describe.factor(x)})
+descriptivesCIL_CKY
+CIL_CKY = apply(CIL_CKY, 2, function(x){ifelse(x > 5, NA, ifelse(x < 1, NA, x))})
+CIL_CKY = data.frame(CIL_CKY)
+describe.factor(CIL_CKY$similar_goals)
+describe.factor(CIL_CKY$has_money_for_health)
+#describe(CIL_CKY)
+```
+Get the percentage of missing data
+```{r}
+dim(CIL_CKY)
+CIL_CKYComplete = na.omit(CIL_CKY)
+dim(CIL_CKY_Complete)
+1-(dim(CIL_CKYComplete)[1] / dim(CIL_CKY)[1])
+
+CIL_CKYMissingDiag =  amelia(CIL_CKY)
+summary(CIL_CKYMissingDiag)
+
 ```
 CFA Full
 ```{r}
@@ -68,92 +83,59 @@ fit1 = cfa(model1, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = C
 summary(fit1, fit.measures = TRUE)
 ```
 
-CFA
+
+Final CFA model
 ```{r}
-model1 = 'HCA =~ manage_health+ manage_mhealth+ no_future_hosp+no_concern_side_effects+ can_cook+ has_home+ safe_neighborhood+ has_money_for_family+has_money_for_health+ job_satisfaction'
+model1  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
+
 fit1 = cfa(model1, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
 summary(fit1, fit.measures = TRUE)
 
-model2  ='HCA =~ manage_health + manage_mhealth +no_ED_use +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
 
-fit2 = cfa(model2, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit2, fit.measures = TRUE)
-
-
-model3 = 'HCA =~ manage_health + manage_mhealth +no_ED_use +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + job_satisfaction'
-
-fit3 = cfa(model3, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit3, fit.measures = TRUE)
-
-
-model4  ='HCA =~ manage_health + manage_mhealth +has_pcp +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit4 = cfa(model4, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit4, fit.measures = TRUE)
-
-
-model5  ='HCA =~ manage_health + manage_mhealth +has_pcp +no_concern_side_effects +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit5 = cfa(model5, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit5, fit.measures = TRUE)
-
-
-model6  ='HCA =~ manage_health + manage_mhealth +has_pcp +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit6 = cfa(model6, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit6, fit.measures = TRUE)
-
-
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
-
-
-
-model8  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + others_support_health + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit8 = cfa(model8, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit8, fit.measures = TRUE)
-
-
-#
-model9  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + no_one_opposes + has_money_for_health + ed_level_satisfaction'
-
-fit9 = cfa(model9, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit9, fit.measures = TRUE)
-
-
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
-
-
-
-```
-Final CFA model
-```{r}
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
-
-
-fit7Complete = cfa(model7, estimator = "MLR", std.lv = TRUE, data = CIL_CKY)
-summary(fit7Complete, fit.measures = TRUE)
+fit1Complete = cfa(model1, estimator = "MLR", std.lv = TRUE, data = CIL_CKY)
+summary(fit1Complete, fit.measures = TRUE)
 
 ```
 Reliabiltiy
 ```{r}
-
-CIL_CKYItems = cbind(CIL_CKY[c("manage_health" , "manage_mhealth" ,"similar_goals" ,"no_concern_side_effects" ,"has_money_food" ,"health_friendly_home" , "has_transport" , "social_activity" , "has_money_for_health" , "ed_level_satisfaction")])
-
-omegaItems = omega(CIL_CKYItems); summary(omegaItems)
+omegaItems = omega(CIL_CKY); summary(omegaItems)
 ```
 Parrell analyses
 ```{r}
 parallel = fa.parallel(CIL_CKYItems, fa= "fa")
 parallel$fa.values
+```
+Now that we have evidence of unidimentionsaility, let's do IRT analysis on the construct
+Constrained, means the discrimination parameters are estimated but all the same.
+```{r}
+CIL_CKYCompleteAnalysis = na.omit(CIL_CKY)
+
+fitOrd1 = grm(data = CIL_CKY, constrained = FALSE, Hessian  = TRUE)
+fitOrd2 = grm(data = CIL_CKY_Complete)
+fitOrd1Complete = grm(data = CIL_CKYCompleteAnalysis, constrained = TRUE, Hessian  = TRUE)
+summary(fitOrd1Complete)
+
+fitOrdPGRM = gpcm(data = CIL_CKY, constraint = "gpcm")
+summary(fitOrdPGRM)
+AIC(fitOrdPGRM)
+AIC(fitOrd1)
+BIC(fitOrdPGRM)
+BIC(fitOrd1)
+summary(fitOrd1)
+
+GoF.gpcm(fitOrdPGRM)
+
+margins(fitOrd1)
+margins(fitOrd1, type = "three")
+information(fitOrd1, c(-3, 2))
+
+plot(fitOrd1, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, type = "OCCu")
+
+
+plot(fitOrd1, items = 1, type = "OCCu", zrange = c(-3,3))
+
+vals <- plot(fitOrd1, type = "IIC", items = 0, plot = FALSE, zrange = c(-3,3)) 
+plot(vals[, "z"], 1 / sqrt(vals[, "test.info"]), type = "l", lwd = 2, xlab = "Ability", ylab = "Standard Error", main = "Standard Error of Measurement")
+
 ```
 
