@@ -1,6 +1,6 @@
 ---
 ---
-title: "CCPEBaseline"
+title: "BAHCS-10 Prelim Results"
 output: html_document
 ---
 
@@ -26,12 +26,13 @@ library(ltm)
 library(lordif)
 library(Amelia)
 library(plyr)
+library(paran)
 ```
 
 
 Load data.  Just get the actual data for now don't worry about sub group analyses.  
 Add a state ID variable so we can differential them later on
-```{r}
+```{r, include=FALSE}
 #setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
 #CIL = read.csv("CIL HCS Dataset_07172018.csv", header = TRUE)
 #CKY = read.csv("CKY HCS Dataset_07172018.csv", header = TRUE)
@@ -87,7 +88,6 @@ CIL_CKYDemo$Data.Warehouse.Client.ID = NULL
 CIL_CKYDemo$Ethnicity = NULL
 CIL_CKYDemo = subset(CIL_CKYDemo, Age > 17)
 demoCIL_CKY = apply(CIL_CKYDemo, 2, function(x){describe.factor(x)})
-demoCIL_CKY
 ```
 
 
@@ -114,7 +114,6 @@ dim(CIL_CKY_Complete)
 
 CIL_CKYMissingDiag =  amelia(CIL_CKY)
 summary(CIL_CKYMissingDiag)
-
 ```
 CFA Full
 ```{r}
@@ -136,15 +135,7 @@ fit1Complete = cfa(model1, estimator = "MLR", std.lv = TRUE, data = CIL_CKYDemo)
 summary(fit1Complete, fit.measures = TRUE)
 
 ```
-Reliabiltiy
-```{r}
-omegaItems = omega(CIL_CKY); summary(omegaItems)
-```
-Parrell analyses
-```{r}
-parallel = fa.parallel(CIL_CKYItems, fa= "fa")
-parallel$fa.values
-```
+
 Now let us try measurement invariance with gender then make race 
 ```{r}
 modelGender = measurementInvariance(model1, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = CIL_CKYDemo, group = "Gender", strict = TRUE)
@@ -157,37 +148,93 @@ describe.factor(CIL_CKYDemoRace$Race)
 
 modelRace = measurementInvariance(model1, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = CIL_CKYDemoRace, group = "Race", strict = TRUE)
 ```
-Now that we have evidence of unidimentionsaility, let's do IRT analysis on the construct
-Constrained, means the discrimination parameters are estimated but all the same.
+
+Reliabiltiy
 ```{r}
-CIL_CKYCompleteAnalysis = na.omit(CIL_CKY)
+omegaItems = omega(CIL_CKY); summary(omegaItems)
+```
+Parrell analyses
+Now try both versions of parrallel analysis Only works with complete data
 
-fitOrd1 = grm(data = CIL_CKY, constrained = FALSE, Hessian  = TRUE)
-fitOrd2 = grm(data = CIL_CKY_Complete)
-fitOrd1Complete = grm(data = CIL_CKYCompleteAnalysis, constrained = TRUE, Hessian  = TRUE)
-summary(fitOrd1Complete)
+Use Common Factor Analysis instead of PCA, and using a more conservative approach to factor retention (parrallel can extract too many factors) See Glorfeld(1995): https://drive.google.com/file/d/1HehR1z1qY4GZkMy8YKqPqHA1coKGOdMB/view?usp=sharing
+```{r}
+CIL_CKYComplete = na.omit(CIL_CKY)
+paran(CIL_CKYComplete, centile = 95, iterations = 1000, graph = TRUE, cfa = TRUE)
+```
+MAP and VSS tests and EFA tests
+```{r}
+vss(CIL_CKY, n = 4)
+BAHCS_10EFA = fa(r = CIL_CKY, nfactors = 3)
+BAHCS_10EFA
+fa.diagram(BAHCS_10EFA)
+```
+Compare partial credit versus graded response model
+PCM isn't converging likely causing the GRM to run better 
+Generalized partial credit model does not make the assumption that items are ordered in the way that they should be (as we move up the threshold go from lower to higher)
+```{r}
+fitOrdGRM = grm(data = CIL_CKY, constrained = FALSE)
+fitOrdPCM = gpcm(data = CIL_CKY, constraint = "gpcm", start.val = "random")
+summary(fitOrdPCM)
+AIC(fitOrdPCM)
+BIC(fitOrdPCM)
+AIC(fitOrdGRM)
+BIC(fitOrdGRM)
+```
+Graded response model with and without missing data
+Constrained means the discrimination parametr is equal
+```{r}
+# With missing data
+# Graded response model
+fitOrdGSM = grm(data = CIL_CKY, constrained = FALSE)
+summary(fitOrdGRM)
 
-fitOrdPGRM = gpcm(data = CIL_CKY, constraint = "gpcm")
-summary(fitOrdPGRM)
-AIC(fitOrdPGRM)
-AIC(fitOrd1)
-BIC(fitOrdPGRM)
-BIC(fitOrd1)
-summary(fitOrd1)
+information(fitOrdGRM, c(-3, 1))
 
-GoF.gpcm(fitOrdPGRM)
+plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
-margins(fitOrd1)
-margins(fitOrd1, type = "three")
-information(fitOrd1, c(-3, 2))
+plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
-plot(fitOrd1, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, type = "OCCu")
+plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+
+plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
 
-plot(fitOrd1, items = 1, type = "OCCu", zrange = c(-3,3))
+vals <- plot(fitOrdGRM, type = "IIC", items = 0, plot = FALSE, zrange = c(-3,3)) 
 
-vals <- plot(fitOrd1, type = "IIC", items = 0, plot = FALSE, zrange = c(-3,3)) 
 plot(vals[, "z"], 1 / sqrt(vals[, "test.info"]), type = "l", lwd = 2, xlab = "Ability", ylab = "Standard Error", main = "Standard Error of Measurement")
+
+```
+DIFF for items
+
+Race reference: white
+Gender refernce: male
+State reference: Illinois
+
+```{r}
+describe(CIL_CKYDemo)
+
+CIL_CKYDemo$OtherRace  = as.factor(ifelse(CIL_CKYDemo$Race == "WHITE OR CAUCASIAN", 0, 1))
+
+CIL_CKYDemo$Female  = as.factor(ifelse(CIL_CKYDemo$Race == "MALE", 0, 1))
+
+
+write.csv(CIL_CKYDemo, "CIL_CKYDemo.csv", row.names = FALSE)
+
+CIL_CKYDemo = read.csv("CIL_CKYDemo.csv", header = TRUE)
+
+CIL_CKYDemo$Gender
+
+raceDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$OtherRace, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(raceDIF)
+plot(raceDIF)
+
+genderDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$Female, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(genderDIF)
+plot(genderDIF)
+
+stateDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$StateID, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(stateDIF)
+plot(stateDIF)
 
 ```
 
