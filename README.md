@@ -1,5 +1,6 @@
 ---
-title: "CCPEBaseline"
+---
+title: "BAHCS-10 Prelim Results"
 output: html_document
 ---
 
@@ -17,19 +18,32 @@ library(ltm)
 library(prettyR)
 library(semTools)
 library(GPArotation)
+library(lavaan)
+library(psych)
+library(semTools)
+library(dplyr)
+library(ltm)
+library(lordif)
+library(Amelia)
+library(plyr)
+library(paran)
+library(caret)
 ```
 
 
 Load data.  Just get the actual data for now don't worry about sub group analyses.  
-```{r}
+Add a state ID variable so we can differential them later on
+```{r, include=FALSE}
 #setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
 #CIL = read.csv("CIL HCS Dataset_07172018.csv", header = TRUE)
 #CKY = read.csv("CKY HCS Dataset_07172018.csv", header = TRUE)
 head(CIL)
-CIL = cbind(CIL[c("good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
-head(CILTest)
+CIL = cbind(CIL[c("SourceClient_ID", "good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
+CIL$StateID = rep(0, dim(CIL)[1])
 
-CKY = cbind(CKY[c("good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
+CKY = cbind(CKY[c("SourceClient_ID","good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
+CKY$StateID = rep(1, dim(CKY)[1])
+
 
 CIL_CKY = data.frame(rbind(CIL, CKY))
 write.csv(CIL_CKY, "CIL_CKY.csv", row.names = FALSE)
@@ -41,119 +55,242 @@ CIL_CKY$can_cook = as.integer(CIL_CKY$can_cook)
 CIL_CKY_Complete = na.omit(CIL_CKY)
 dim(CIL_CKY_Complete)
 
+
 ```
-Reliabiltiy
+Now let us load in the demographics
+Get rid of immigration status only Ill has it so we can rbind them
+Then we can merge on SourceID for the full file then subset below for full analysis
+Now merge them on 
 ```{r}
-omegaItems = omega(CIL_CKY); summary(omegaItems)
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
+CILDemo = read.csv("Brief HCS - IL - Demographics - 20180813.csv", header = TRUE)
+CKYDemo = read.csv("Brief HCS - KY - Demographics - 20180813.csv", header = TRUE)
+CILDemo$Immigration.Status = NULL
+# need to rename without the period number 3
+head(CKYDemo)
+CIL_CKY_Demo = rbind(CILDemo, CKYDemo)
+names(CIL_CKY_Demo)[3] = "SourceClient_ID"
+CIL_CKY = merge(CIL_CKY, CIL_CKY_Demo, by = "SourceClient_ID", all = TRUE)
+dim(CIL_CKY)
+head(CIL_CKY)
+
 ```
-Parrell analyses
+Now let us see how much data is misisng 
 ```{r}
-parallel = fa.parallel(CIL_CKY, fa= "fa")
-parallel$fa.values
+CIL_CKYComplete = na.omit(CIL_CKY)
+dim(CIL_CKYComplete)
+dim(CIL_CKY)
+CIL_CKYDemo = CIL_CKY
+
+describe.factor(CIL_CKYDemo$StateID)
+describe.factor(CIL_CKYDemo$Age, decr.order = FALSE)
 ```
-Exploratory Factor Analysis
+Let us get some descriptives and get rid of those who are under 18
 ```{r}
-unrotated4 <- efaUnrotate(CIL_CKY, nf=4, estimator="mlr", missing = "ML")
-summary(unrotated4, std=TRUE)
-inspect(unrotated4, "std")
+# Get rid of client ID don't need it any more
+#CIL_CKYDemo$SourceClient_ID = NULL
+CIL_CKYDemo$Last.Service.Date = NULL
+CIL_CKYDemo$Source.System = NULL
+CIL_CKYDemo$Data.Warehouse.Client.ID = NULL
+CIL_CKYDemo$Ethnicity = NULL
+demoCIL_CKY = apply(CIL_CKYDemo, 2, function(x){describe.factor(x)})
 
-unrotated1 <- efaUnrotate(CIL_CKY, nf=1, estimator="mlr", missing = "ML")
-
-anova(unrotated1, unrotated4)
+describe.factor(CIL_CKYDemo$StateID)
 ```
-CFA Full
+Get full data set and clean it
 ```{r}
-model1 = 'HCA =~ good_health+ manage_health+ knows_conditions+ phys_activity+ manage_mhealth+ has_goals+ not_overwhelmed+ has_pcp+ similar_goals+ health_literacy+ no_future_hosp+ no_ED_use+ knows_meds+ takes_meds+ no_concern_side_effects+ can_cook+ access_nut_food+ has_money_food+ eats_nut_food+ health_friendly_home+ accessible_home+ living_sit_satisfaction+ has_home+ safe_neighborhood+ near_supports+ has_transport+ others_support_health+ social_activity+ no_one_opposes+ has_money_for_family+ manage_money+ has_money_for_health+ ed_level_satisfaction+ job_satisfaction'
-fit1 = cfa(model1, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit1, fit.measures = TRUE)
+CIL_CKYFull = CIL_CKY
+CIL_CKYFull = CIL_CKYFull[c(1:37)]
+SourceClient_ID =  CIL_CKYFull$SourceClient_ID
+CIL_CKYFull$SourceClient_ID = NULL
+CIL_CKYFull = apply(CIL_CKYFull, 2, function(x){ifelse(x > 5, NA, ifelse(x < 1, NA, x))})
+CIL_CKYFull = data.frame(CIL_CKYFull)
+CIL_CKYFull$SourceClient_ID = SourceClient_ID
+
 ```
 
-CFA
+
+There is a rouge 0 and 7.  Probably should get rid of those.
+```{r, include=FALSE}
+CIL_CKY = cbind(CIL_CKY[c("manage_health" , "manage_mhealth" ,"similar_goals" ,"no_concern_side_effects" ,"has_money_food" ,"health_friendly_home" , "has_transport" , "social_activity" , "has_money_for_health" , "ed_level_satisfaction")])
+
+descriptivesCIL_CKY = apply(CIL_CKY, 2, function(x){describe.factor(x)})
+descriptivesCIL_CKY
+CIL_CKY = apply(CIL_CKY, 2, function(x){ifelse(x > 5, NA, ifelse(x < 1, NA, x))})
+CIL_CKY = data.frame(CIL_CKY)
+describe.factor(CIL_CKY$similar_goals)
+describe.factor(CIL_CKY$has_money_for_health)
+describe(CIL_CKY)
+
+dim(CIL_CKY)
+dim(CIL_CKYDemo)
+```
+Get the percentage of missing data
 ```{r}
-model1 = 'HCA =~ manage_health+ manage_mhealth+ no_future_hosp+no_concern_side_effects+ can_cook+ has_home+ safe_neighborhood+ has_money_for_family+has_money_for_health+ job_satisfaction'
-fit1 = cfa(model1, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit1, fit.measures = TRUE)
+dim(CIL_CKY)
+CIL_CKYComplete = na.omit(CIL_CKY)
+dim(CIL_CKY_Complete)
+1-(dim(CIL_CKYComplete)[1] / dim(CIL_CKY)[1])
 
-model2  ='HCA =~ manage_health + manage_mhealth +no_ED_use +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
+CIL_CKYMissingDiag =  amelia(CIL_CKY)
+summary(CIL_CKYMissingDiag)
+```
+Get the unique number of people in the sample
+```{r}
 
-fit2 = cfa(model2, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit2, fit.measures = TRUE)
+CIL_CKYFullUniqueComplete = na.omit(CIL_CKYFull[!duplicated(CIL_CKYFull$SourceClient_ID), ])
+dim(CIL_CKYFullUniqueComplete)
+CIL_CKYDemoUniqueComplete = na.omit(CIL_CKYDemo[!duplicated(CIL_CKYDemo$SourceClient_ID), ])
+BAHCS_10_Items = CIL_CKYDemoUniqueComplete[c("manage_health", "manage_mhealth", "similar_goals", "no_concern_side_effects", "has_money_food", "health_friendly_home", "has_transport", "social_activity" , "has_money_for_health", "ed_level_satisfaction")]
 
+BAHCS_10_Items$similar_goals = ifelse(BAHCS_10_Items$similar_goals == 0, NA, BAHCS_10_Items$similar_goals)
+BAHCS_10_Items = na.omit(BAHCS_10_Items)
+   
+BAHCS_10_Demo = data.frame(BAHCS_10_Items, Age = CIL_CKYDemoUniqueComplete$Age, Race = CIL_CKYDemoUniqueComplete$Race, Gender = CIL_CKYDemoUniqueComplete$Gender, StateID = CIL_CKYDemoUniqueComplete$StateID, SourceClient_ID = CIL_CKYDemoUniqueComplete$SourceClient_ID)
 
-model3 = 'HCA =~ manage_health + manage_mhealth +no_ED_use +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + job_satisfaction'
-
-fit3 = cfa(model3, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit3, fit.measures = TRUE)
-
-
-model4  ='HCA =~ manage_health + manage_mhealth +has_pcp +knows_meds +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit4 = cfa(model4, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit4, fit.measures = TRUE)
-
-
-model5  ='HCA =~ manage_health + manage_mhealth +has_pcp +no_concern_side_effects +has_money_food +health_friendly_home + near_supports + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit5 = cfa(model5, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit5, fit.measures = TRUE)
-
-
-model6  ='HCA =~ manage_health + manage_mhealth +has_pcp +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit6 = cfa(model6, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit6, fit.measures = TRUE)
-
-
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
+BAHCS_10_Demo$similar_goals = ifelse(BAHCS_10_Demo$similar_goals == 0, NA, BAHCS_10_Demo$similar_goals)
+BAHCS_10_Demo = na.omit(BAHCS_10_Demo)
+BAHCS_10_Demo
+```
+Get descriptives
+```{r}
+BAHCS_10_Demo$StateID = as.factor(BAHCS_10_Demo$StateID)
+describe(BAHCS_10_Demo)
+data.frame(apply(BAHCS_10_Demo, 2, sd))
+```
 
 
+EFA with all items
+Try to see if a large EFA and CFA makes sense
+EFA too messy with this many dimensions
+```{r}
 
-model8  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + others_support_health + social_activity + has_money_for_health + ed_level_satisfaction'
+efa3 = fa(r = BAHCS_10_Items, nfactors = 3, fm = "gls", cor = "poly")
+efa3
+fa.diagram(efa3)
 
-fit8 = cfa(model8, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit8, fit.measures = TRUE)
+efa2 = fa(r = BAHCS_10_Items, nfactors = 2, fm = "gls", cor = "poly")
+efa2
+fa.diagram(efa2)
 
+efa1 = fa(r = BAHCS_10_Items, nfactors = 1, fm = "gls", cor = "poly")
+efa1
+fa.diagram(efa1)
 
-#
-model9  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + no_one_opposes + has_money_for_health + ed_level_satisfaction'
+anova(efa3,efa1)
 
-fit9 = cfa(model9, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit9, fit.measures = TRUE)
+# now try VSS
+vss(BAHCS_10_Items, n = 3, rotate = "oblimin", fm = "mle", cor = "poly")
 
+# now try paran
 
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
-
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
-
-
-
+paran(BAHCS_10_Items, centile = 95, iterations = 1000, graph = TRUE, cfa = TRUE)
 ```
 Final CFA model
 ```{r}
-model7  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
+model1  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
 
-fit7 = cfa(model7, estimator = "MLR",  missing = "fiml", std.lv = TRUE, data = CIL_CKY)
-summary(fit7, fit.measures = TRUE)
-
-
-fit7Complete = cfa(model7, estimator = "MLR", std.lv = TRUE, data = CIL_CKY)
-summary(fit7Complete, fit.measures = TRUE)
-
+fit1 = cfa(model1, estimator = "MLR", data = BAHCS_10_Items)
+summary(fit1, fit.measures = TRUE, standardized = TRUE)
 ```
+
+
+
 Reliabiltiy
 ```{r}
-
-CIL_CKYItems = cbind(CIL_CKY[c("manage_health" , "manage_mhealth" ,"similar_goals" ,"no_concern_side_effects" ,"has_money_food" ,"health_friendly_home" , "has_transport" , "social_activity" , "has_money_for_health" , "ed_level_satisfaction")])
-
-omegaItems = omega(CIL_CKYItems); summary(omegaItems)
+omegaItems = omega(BAHCS_10_Items); summary(omegaItems)
+omegaItems
 ```
-Parrell analyses
+Compare partial credit versus graded response model
+PCM isn't converging likely causing the GRM to run better 
+Generalized partial credit model does not make the assumption that items are ordered in the way that they should be (as we move up the threshold go from lower to higher)
 ```{r}
-parallel = fa.parallel(CIL_CKYItems, fa= "fa")
-parallel$fa.values
+fitOrdGRM = grm(data = CIL_CKY, constrained = FALSE)
+fitOrdPCM = gpcm(data = CIL_CKY, constraint = "gpcm", start.val = "random")
+summary(fitOrdPCM)
+AIC(fitOrdPCM)
+BIC(fitOrdPCM)
+AIC(fitOrdGRM)
+BIC(fitOrdGRM)
+```
+Graded response model with and without missing data
+Constrained means the discrimination parametr is equal
+```{r}
+# With missing data
+# Graded response model
+
+describe(BAHCS_10_Items)
+
+fitOrdGRM = grm(data = BAHCS_10_Items, constrained = FALSE)
+summary(fitOrdGRM)
+
+information(fitOrdGRM, c(-3, 1))
+
+plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+
+plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+
+plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+
+plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+
+
+vals <- plot(fitOrdGRM, type = "IIC", items = 0, plot = FALSE, zrange = c(-3,3)) 
+
+plot(vals[, "z"], 1 / sqrt(vals[, "test.info"]), type = "l", lwd = 2, xlab = "Ability", ylab = "Standard Error", main = "Standard Error of Measurement")
+
+```
+DIFF for items
+
+Race reference: white
+Gender refernce: male
+State reference: Illinois
+Only 74 observations from Kentucky who we were able to match with demographics, so that is why 
+```{r}
+describe(CIL_CKYDemo)
+
+CIL_CKYDemo$OtherRace  = as.factor(ifelse(CIL_CKYDemo$Race == "WHITE OR CAUCASIAN", 0, 1))
+
+CIL_CKYDemo$Female  = as.factor(ifelse(CIL_CKYDemo$Gender == "MALE", 0, 1))
+
+
+write.csv(CIL_CKYDemo, "CIL_CKYDemo.csv", row.names = FALSE)
+
+CIL_CKYDemo = read.csv("CIL_CKYDemo.csv", header = TRUE)
+
+
+
+raceDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$OtherRace, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(raceDIF)
+plot(raceDIF)
+
+genderDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$Female, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(genderDIF)
+plot(genderDIF)
+
+stateDIF = lordif(resp.data = CIL_CKY, group = CIL_CKYDemo$StateID, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(stateDIF)
+plot(stateDIF)
+
+```
+See what is going on with item 6
+Ok almost all the data is from Illinois
+Looks like there is a lot of missing data for Kentucky.  This is resulting in not much data to work with (about 74 people.)
+```{r}
+dim(CIL_CKYDemo)
+CIL_Check = subset(CIL_CKYDemo, StateID == "0")
+
+describe.factor(CIL_Check$health_friendly_home)
+
+CIL_Check = subset(CIL_CKYDemo, StateID == "1")
+
+describe.factor(CKY_Check$health_friendly_home)
+
+describe(CKY_Check)
+
+
+dim(CIL_Check)
+CIL_Check = na.omit(CIL_Check)
+
 ```
 
