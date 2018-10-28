@@ -283,3 +283,110 @@ dim(CIL_Check)
 CIL_Check = na.omit(CIL_Check)
 
 ```
+####################
+Predictive validity
+####################
+Create total score for BAHCS-10
+```{r}
+BAHCS_10_DemoPred = BAHCS_10_Demo
+BAHCS_10_DemoPred = BAHCS_10_DemoPred[c(1:10)]
+head(BAHCS_10_DemoPred)
+BAHCS_10_DemoPred = rowSums(BAHCS_10_DemoPred, na.rm = TRUE)
+head(BAHCS_10_DemoPred)
+BAHCS_10_DemoPred = data.frame(BAHCS_10TotalScore = BAHCS_10_DemoPred, AvatarClient_ID = BAHCS_10_Demo$SourceClient_ID)
+head(BAHCS_10_DemoPred)
+```
+Tobac south
+```{r}
+head(CIL_South_HCS_tobacco_use)
+describe(CIL_South_HCS_tobacco_use)
+CIL_SouthTobac = CIL_South_HCS_tobacco_use[c("LegacyClientID", "FollowUpTimePoint", "UsesTobacco_IND")]
+CIL_SouthTobac = subset(CIL_SouthTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+describe.factor(CIL_SouthTobac$FollowUpTimePoint)
+CIL_SouthTobac$FollowUpTimePoint = NULL
+names(CIL_SouthTobac)[1] = "AvatarClient_ID"
+
+
+CIL_WestTobac = CIL_West_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
+CIL_WestTobac = subset(CIL_WestTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+describe.factor(CIL_WestTobac$FollowUpTimePoint)
+CIL_WestTobac$FollowUpTimePoint = NULL
+names(CIL_WestTobac)[1] = "AvatarClient_ID"
+
+
+CKYTobac = CKY_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
+CKYTobac = subset(CKYTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+describe.factor(CKYTobac$FollowUpTimePoint)
+CKYTobac$FollowUpTimePoint = NULL
+names(CKYTobac)[1] = "AvatarClient_ID"
+
+CIL_Kentucky_Tobac = rbind(CIL_SouthTobac, CIL_WestTobac, CKYTobac)
+
+BAHCS_10_DemoPred_Tobac = merge(BAHCS_10_DemoPred, CIL_Kentucky_Tobac, by = "AvatarClient_ID", all.x = TRUE)
+dim(BAHCS_10_DemoPred_Tobac)
+describe(BAHCS_10_DemoPred_Tobac)
+```
+
+
+Vitals all
+```{r}
+head(CIL_South_HCS_vitals)
+
+CIL_South_vitals = CIL_South_HCS_vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
+describe.factor(CIL_South_vitals$Timepoints_Vitals)
+CIL_South_vitals = subset(CIL_South_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
+dim(CIL_South_vitals)
+CIL_South_vitals$Timepoints_Vitals = NULL
+
+CIL_West_vitals = CIL_West_HCS_vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
+describe.factor(CIL_West_vitals$Timepoints_Vitals)
+CIL_West_vitals = subset(CIL_West_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
+dim(CIL_West_vitals)
+CIL_West_vitals$Timepoints_Vitals = NULL
+
+CIL_Kentucky_vitals = CKY_HCS_Vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
+describe.factor(CIL_Kentucky_vitals$Timepoints_Vitals)
+CIL_Kentucky_vitals = subset(CIL_Kentucky_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
+dim(CIL_Kentucky_vitals)
+CIL_Kentucky_vitals$Timepoints_Vitals = NULL
+
+CIL_CKY_Vitals = rbind(CIL_South_vitals, CIL_West_vitals, CIL_Kentucky_vitals)
+describe(CIL_CKY_Vitals)
+
+BAHCS_10_DemoPredVitals = merge(BAHCS_10_DemoPred, CIL_CKY_Vitals, by = "AvatarClient_ID", all.x = TRUE)
+describe(BAHCS_10_DemoPredVitals)
+```
+Correlations with BMI and Tobacco Use and BAHCS-10
+```{r}
+library(Hmisc)
+rcorr(BAHCS_10_DemoPredVitals$BAHCS_10TotalScore,BAHCS_10_DemoPredVitals$BMI, type="pearson")
+BAHCS_10_DemoPredVitals
+
+library(ltm)
+biserial.cor(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND, use = "complete.obs")
+
+```
+CIL_PHQ9 Now try getting PHQ9 scores
+```{r}
+head(CIL_South_HCS_PHQ9)
+CIL_South_PHQ9 = CIL_South_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
+names(CIL_South_PHQ9)[1] = "AvatarClient_ID"
+CIL_South_PHQ9 = subset(CIL_South_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+
+CIL_West_PHQ9 = CIL_West_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
+names(CIL_West_PHQ9)[1] = "AvatarClient_ID"
+CIL_West_PHQ9 = subset(CIL_West_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+describe.factor(CIL_West_PHQ9$FollowUpTimePoint)
+
+
+CIL_Kentucky_PHQ9 = CKY_HCS_PHQ9[c("AvatarClient_ID", "FollowUpTimePoint", "Total_PHQ9")]
+CIL_Kentucky_PHQ9 = subset(CIL_Kentucky_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+
+CIL_CKY_PHQ9 = rbind(CIL_South_PHQ9, CIL_West_PHQ9, CIL_Kentucky_PHQ9)
+
+BAHCS_10_DemoPredPHQ9 = merge(BAHCS_10_DemoPred, CIL_CKY_PHQ9, by = "AvatarClient_ID", all.x = TRUE)
+describe(BAHCS_10_DemoPredPHQ9)
+
+rcorr(BAHCS_10_DemoPredPHQ9$BAHCS_10TotalScore, BAHCS_10_DemoPredPHQ9$Total_PHQ9, type = "pearson")
+
+```
