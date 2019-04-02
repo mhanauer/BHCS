@@ -30,12 +30,10 @@ library(paran)
 library(caret)
 library(eRm)
 ```
-
-
-Load data.  Just get the actual data for now don't worry about sub group analyses.  
-Add a state ID variable so we can differential them later on
-
 This is all data cleaning run first.
+First set is just loading the data
+The second set is subseting the data to just get the items
+The third set is creating a demographics data set which is the same data just with demographics
 ```{r, include=FALSE}
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
 CIL = read.csv("CIL HCS Dataset_07172018.csv", header = TRUE)
@@ -86,10 +84,6 @@ dim(CIL_CKY)
 CIL_CKY_Demo = merge(CIL_CKY, CIL_CKY_Demo, by = "SourceClient_ID", all.x = TRUE)
 dim(CIL_CKY_Demo)
 ```
-
-
-Now let us see how much data is misisng 
-
 Getting rid of missing data that is 93 or higher, because that is planned missing data.
 ```{r}
 apply(CIL_CKY_Demo, 2, function(col)sum(is.na(col))/length(col))
@@ -103,7 +97,7 @@ CIL_CKY_Demo = subset(CIL_CKY_Demo, missing_data_person < .9)
 dim(CIL_CKY_Demo)
 sum(is.na(CIL_CKY_Demo))
 ```
-Clean up data 
+There were some clerical errors in data entry so cleaning those up 
 ```{r}
 # Get rid of client ID don't need it any more
 #CIL_CKY_Demo$SourceClient_ID = NULL
@@ -150,6 +144,7 @@ dim(CIL_CKY_Demo)
 
 ```
 Get the unique number of people in the sample
+For this analyses, it was unclear what the time frame was for second and third enteries (no time variable).  The first entry is the first instance and the second entry is the second instance, but other than not sure it was at 3 months, 6 months or something else.  So I just focused on the first entry, which is grabbed by using the duplicate formula below
 ```{r}
 
 CIL_CKYFullUnique = CIL_CKY_Demo[!duplicated(CIL_CKY_Demo$SourceClient_ID), ]
@@ -162,8 +157,10 @@ BAHCS_10_Demo = data.frame(BAHCS_10_Items, Age = CIL_CKYFullUnique$Age, Race = C
 
 dim(BAHCS_10_Demo)
 sum(is.na(BAHCS_10_Demo))
+
+
 ```
-Get the percentage of missing data with all < .9 excluded
+Subsetting for the demographics data set
 ```{r}
 apply(BAHCS_10_Demo, 2, function(col)sum(is.na(col))/length(col))
 missing_data_person = apply(CIL_CKY_Demo, 1, function(row)sum(is.na(row))/length(row))
@@ -173,17 +170,12 @@ BAHCS_10_Demo_Complete = na.omit(BAHCS_10_Demo)
 dim(BAHCS_10_Demo_Complete)[1]/dim(BAHCS_10_Demo)[1]
 
 ```
-
-
-
 Get descriptives
 ```{r}
 BAHCS_10_Demo$StateID = as.factor(BAHCS_10_Demo$StateID)
 describe(BAHCS_10_Demo)
 data.frame(apply(BAHCS_10_Demo, 2, sd, na.rm = TRUE))
 ```
-
-
 EFA with all items
 Try to see if a large EFA and CFA makes sense
 EFA too messy with this many dimensions
@@ -220,6 +212,7 @@ summary(fit1, fit.measures = TRUE, standardized = TRUE)
 
 ```
 Model without item ten
+Included this model, because there is some evidence that item 10 is not good
 ```{r}
 model_no_10  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health'
 
@@ -239,6 +232,8 @@ Constrained means the discrimination parametr is equal
 # Graded response model
 describe(BAHCS_10_Items)
 dim(BAHCS_10_Items)
+
+
 
 fitOrdGRM = grm(data = BAHCS_10_Items, constrained = FALSE)
 fitOrdGRMCon = grm(data = BAHCS_10_Items, constrained = TRUE)
@@ -306,10 +301,9 @@ Expected the (row total * column total) / n
 What the output gives us is the total residual.  So the total residual across all categories for items one and two is 65.91
 ```{r}
 margins2 = margins(fitOrdGRM, "two")
-margins2$margins
-test
+#margins2$margins
 margins3 = margins(fitOrdGRM, "three")
-margins3
+#margins3
 ```
 Item 10 is not so good
 ```{r}
@@ -323,23 +317,7 @@ plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy =
 
 plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
 ```
-Get the range for which the BACHS-10 is most accurate
-Ok so total score does not exactly match up with ability level
-```{r}
-sum(is.na(BAHCS_10_Items))
-fsc = factor.scores(fitOrdGRM)
-dat_score =  fsc$score.dat
-Total_Score = rowSums(dat_score[,1:10])
 
-dat_score = data.frame(Total_Score, Ability = fsc$score.dat$z1)
-
-dat_score = dat_score[order(dat_score$Ability),]
-
-dat_score_complete = na.omit(dat_score)
-
-tail(dat_score_complete, 90)
-
-```
 Trying eRm package 
 
 
@@ -348,7 +326,6 @@ DIFF for items
 Race reference: white
 Gender refernce: male
 State reference: Illinois
-Only 74 observations from Kentucky who we were able to match with demographics, so that is why 
 ```{r}
 
 
@@ -375,26 +352,6 @@ summary(stateDIF)
 plot(stateDIF)
 
 ```
-See what is going on with item 6
-Ok almost all the data is from Illinois
-Looks like there is a lot of missing data for Kentucky.  This is resulting in not much data to work with (about 74 people.)
-```{r}
-dim(CIL_CKYDemo)
-CIL_Check = subset(CIL_CKYDemo, StateID == "0")
-
-describe.factor(CIL_Check$health_friendly_home)
-
-CIL_Check = subset(CIL_CKYDemo, StateID == "1")
-
-describe.factor(CKY_Check$health_friendly_home)
-
-describe(CKY_Check)
-
-
-dim(CIL_Check)
-CIL_Check = na.omit(CIL_Check)
-
-```
 ####################
 Predictive validity
 ####################
@@ -408,27 +365,27 @@ head(BAHCS_10_DemoPred)
 BAHCS_10_DemoPred = data.frame(BAHCS_10TotalScore = BAHCS_10_DemoPred, AvatarClient_ID = BAHCS_10_Demo$SourceClient_ID)
 head(BAHCS_10_DemoPred)
 ```
-
-Tobac south
+Combining Tobacco use
+Just looking at intake to be consisent
 ```{r}
 head(CIL_South_HCS_tobacco_use)
 describe(CIL_South_HCS_tobacco_use)
 CIL_SouthTobac = CIL_South_HCS_tobacco_use[c("LegacyClientID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CIL_SouthTobac = subset(CIL_SouthTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CIL_SouthTobac = subset(CIL_SouthTobac, FollowUpTimePoint == "Intake")
 describe.factor(CIL_SouthTobac$FollowUpTimePoint)
 CIL_SouthTobac$FollowUpTimePoint = NULL
 names(CIL_SouthTobac)[1] = "AvatarClient_ID"
 
 
 CIL_WestTobac = CIL_West_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CIL_WestTobac = subset(CIL_WestTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CIL_WestTobac = subset(CIL_WestTobac, FollowUpTimePoint == "Intake")
 describe.factor(CIL_WestTobac$FollowUpTimePoint)
 CIL_WestTobac$FollowUpTimePoint = NULL
 names(CIL_WestTobac)[1] = "AvatarClient_ID"
 
 
 CKYTobac = CKY_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CKYTobac = subset(CKYTobac, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CKYTobac = subset(CKYTobac, FollowUpTimePoint == "Intake")
 describe.factor(CKYTobac$FollowUpTimePoint)
 CKYTobac$FollowUpTimePoint = NULL
 names(CKYTobac)[1] = "AvatarClient_ID"
@@ -439,62 +396,29 @@ BAHCS_10_DemoPred_Tobac = merge(BAHCS_10_DemoPred, CIL_Kentucky_Tobac, by = "Ava
 dim(BAHCS_10_DemoPred_Tobac)
 describe(BAHCS_10_DemoPred_Tobac)
 ```
-Vitals all
-```{r}
-head(CIL_South_HCS_vitals)
-
-CIL_South_vitals = CIL_South_HCS_vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
-describe.factor(CIL_South_vitals$Timepoints_Vitals)
-CIL_South_vitals = subset(CIL_South_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
-dim(CIL_South_vitals)
-CIL_South_vitals$Timepoints_Vitals = NULL
-
-CIL_West_vitals = CIL_West_HCS_vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
-describe.factor(CIL_West_vitals$Timepoints_Vitals)
-CIL_West_vitals = subset(CIL_West_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
-dim(CIL_West_vitals)
-CIL_West_vitals$Timepoints_Vitals = NULL
-
-CIL_Kentucky_vitals = CKY_HCS_Vitals[c("AvatarClient_ID", "BMI", "Timepoints_Vitals")]
-describe.factor(CIL_Kentucky_vitals$Timepoints_Vitals)
-CIL_Kentucky_vitals = subset(CIL_Kentucky_vitals, Timepoints_Vitals == "Intake" | Timepoints_Vitals == "")
-dim(CIL_Kentucky_vitals)
-CIL_Kentucky_vitals$Timepoints_Vitals = NULL
-
-CIL_CKY_Vitals = rbind(CIL_South_vitals, CIL_West_vitals, CIL_Kentucky_vitals)
-describe(CIL_CKY_Vitals)
-
-BAHCS_10_DemoPredVitals = merge(BAHCS_10_DemoPred, CIL_CKY_Vitals, by = "AvatarClient_ID", all.x = TRUE)
-describe(BAHCS_10_DemoPredVitals)
-```
 Correlations with BMI and Tobacco Use and BAHCS-10
 ```{r}
 library(Hmisc)
 library(ltm)
-biserial.cor(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND, use = "complete.obs")
-
-BAHCS_10_DemoPred_Tobac$Test = rnorm(mean = 100, sd = 2,n = dim(BAHCS_10_DemoPred_Tobac)[1])
-
 library(psych)
 biserial(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND)
 cor.test(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND)
-
 ```
 CIL_PHQ9 Now try getting PHQ9 scores
 ```{r}
 head(CIL_South_HCS_PHQ9)
 CIL_South_PHQ9 = CIL_South_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
 names(CIL_South_PHQ9)[1] = "AvatarClient_ID"
-CIL_South_PHQ9 = subset(CIL_South_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CIL_South_PHQ9 = subset(CIL_South_PHQ9, FollowUpTimePoint == "Intake")
 
 CIL_West_PHQ9 = CIL_West_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
 names(CIL_West_PHQ9)[1] = "AvatarClient_ID"
-CIL_West_PHQ9 = subset(CIL_West_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CIL_West_PHQ9 = subset(CIL_West_PHQ9, FollowUpTimePoint == "Intake")
 describe.factor(CIL_West_PHQ9$FollowUpTimePoint)
 
 
 CIL_Kentucky_PHQ9 = CKY_HCS_PHQ9[c("AvatarClient_ID", "FollowUpTimePoint", "Total_PHQ9")]
-CIL_Kentucky_PHQ9 = subset(CIL_Kentucky_PHQ9, FollowUpTimePoint == "Intake" | FollowUpTimePoint == "")
+CIL_Kentucky_PHQ9 = subset(CIL_Kentucky_PHQ9, FollowUpTimePoint == "Intake")
 
 CIL_CKY_PHQ9 = rbind(CIL_South_PHQ9, CIL_West_PHQ9, CIL_Kentucky_PHQ9)
 
