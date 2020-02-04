@@ -1,442 +1,443 @@
----
----
-title: "BAHCS-10 Prelim Results"
-output: html_document
----
+# STEM based analyses
+library(mirt)
+library(CTT)
+library(lavaan)
+library(psych)
+library(ltm)
+library(foreign)
+library(dplyr)
+library('GPArotation')
+library(itemanalysis)
+library(semTools)
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-Library packages
-```{r}
-library(lavaan)
-library(lavaan)
-library(psych)
-library(dplyr)
-library(ltm)
-library(prettyR)
-library(GPArotation)
-library(lavaan)
-library(psych)
-library(dplyr)
-library(ltm)
-library(lordif)
-library(Amelia)
-library(plyr)
-library(paran)
-library(caret)
+
+
+#set up working directory
+#working.directory<-"C:\\Users\\dsvet\\Box Sync\\____Since Tenure\\Research\\stem\\"
+#working.directory<-"C:\\Users\\dsvet\\Box\\Matt_collaboration\\Data\\"
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale")
+#setwd(working.directory)
+#dir()
+
+# read in entire data
+#data<-read.csv("BAHCS_10_Demo.csv", header=TRUE)
+n.data<-read.table("matt.dat", sep="\t", header=TRUE)
+dim(n.data)
+names(n.data)
+names(n.data)
+
+#basic reliability
+clean.data<-na.omit(n.data)
+dim(clean.data)
+
+f1<-reliability(clean.data[,1:10], itemal = TRUE, NA.Delete = TRUE)
+str(reliability(clean.data[,1:10],itemal=TRUE))
+f1$pBis
+f1$alphaIfDeleted
+
+#split data into two for EFA and CFA analysis
+## 50% of the sample size
+smp_size <- floor(0.5 * nrow(n.data))
+
+
+## set the seed to make your partition reproducible
+set.seed(1233321)
+train_ind <- sample(seq_len(nrow(n.data)), size = smp_size)
+
+#train data is for EFA
+#test data is for CFA
+#n.data or clean.data for IRT
+
+train <- n.data[train_ind, ]
+test <- n.data[-train_ind, ]
+dim(train)
+dim(test)
+
+
+# exploratory factor analsys using psych
+efa_bahcs1 <- fa.poly(train[,1:10], nfactors=1, rotate="varimax")
+efa_bahcs2 <- fa.poly(train[,1:10], nfactors=2, rotate="varimax")
+efa_bahcs3 <- fa.poly(train[,1:10], nfactors=3, rotate="varimax")
+
+efa_bahcs1$fa$loadings
+fap <- fa.parallel.poly(train[,1:10])   # parallel analysis for dichotomous data
+fap$pc.values
+fap$fa.values
+fa.diagram(fap)
+
+vss(train[,1:10], n=3)
+# CFA in lavaan
+###CFA
+BAHCS.model <- 'BAHCS  =~ manage_health + manage_mhealth + similar_goals + no_concern_side_effects+ has_money_food+health_friendly_home+ has_transport+social_activity+has_money_for_health+ed_level_satisfaction'
+fit.BAHCS <- cfa(BAHCS.model, data=test[,1:10], estimator="WLSMV",
+                 ordered=c( "manage_health","manage_mhealth", "similar_goals","no_concern_side_effects",
+                            "has_money_food","health_friendly_home","has_transport","social_activity","has_money_for_health",    
+                            "ed_level_satisfaction" ),std.lv = TRUE)
+summary(fit.BAHCS, fit.measures=TRUE)
+cfa.fit.results<-data.matrix(fitmeasures(fit.BAHCS, fit.measures = c("chisq.scaled","df.scaled","pvalue.scaled", "rmsea.scaled", "cfi.scaled", "tli.scaled"), digits=3))
+
+round(cfa.fit.results, digits=3)
+
+
+
+#IRT on 6 items from BAHCS subscale
+s <- 'F1 = 1-10'
+model_BAHCS<-mirt.model(s)
+model_BAHCS
+#######################################################################
+######################################################################
+#fitting IRT model - graded
+BAHCS.model.graded.c<-mirt(n.data[,1:10], model=model_BAHCS, itemtype = "graded", technical=list(removeEmptyRows=TRUE))
+
+
+
+BAHCS.m2<-M2(BAHCS.model.graded.c,  na.rm=TRUE)
+BAHCS.m2
+BAHCS.i.fit.graded.c<-itemfit(BAHCS.model.graded.c, na.rm=TRUE)
+
+BAHCS.i.fit.graded.c
+
+irt.fit.results<-round(as.matrix(BAHCS.m2), digits=3)
+
+################################################
+#adjusted p values for item fit
+p.val.BAHCS<-BAHCS.i.fit.graded.c[,5] #p values are stored in 5th column 
+p.val.BAHCS
+p.adj<-p.adjust(p.val.BAHCS, method="BH")
+round(p.adj, digits=3)
+#combined item fit
+results<-cbind(BAHCS.i.fit.graded.c, round(p.adj, digits=3))
+results
+
+#getting out coefficients
+BAHCS.coef.graded.c<-coef(BAHCS.model.graded.c, IRTpars=TRUE)
+BAHCS.coef.graded.c<-coef(BAHCS.model.graded.c, IRTpars=TRUE, simplify = TRUE)
+
+
+BAHCS.coef.graded.c
+
+#itemplot(model.graded.c,item=3, type="infoSE")
+plot(BAHCS.model.graded.c, type='infoSE', main="BAHCS Test Information and Standard Errors")
+
+
+
+
+
+
+
+################################################
+
+
+
+
+
+
+
+data.item<-clean.data[,1:10]
+
+is.numeric(data.item)
+is.data.frame(data.item)
+head(data.item)
+data.item<-as.numeric(data.item[,])
+dim(data.item)
+write.table(data.item, file="dataitem.dat", sep=",")
+dat<-read.table("data_manual.txt", sep="\t", header=FALSE)
+dim(dat)
+head(dat)
+as.numeric(dat)
+is.data.frame(dat)
+
+
+
+
+BAHCS.graded.c<-mirt(data.item, model=model_BAHCS, itemtype = "graded", technical=list(removeEmptyRows=TRUE))
+BAHCS.gr.m2<-M2(BAHCS.graded.c, type='C2', na.rm=TRUE)
+BAHCS.gr.m2
+BAHCS.gradedfit<-itemfit(BAHCS.graded.c)
+BAHCS.gradedfit
+
+
+
+irt.fit.results<-round(as.matrix(BAHCS.m2), digits=3)
+
+
+
+
+#in ltm, item.fit
+
+
+
+x <- mirt(n.data[,1:10], 1, fit_stats= technical=list(removeEmptyRows=TRUE))
+raschfit <- mirt(n.data[,1:10], 1, technical=list(removeEmptyRows=TRUE), itemtype='Rasch')
+fit <- itemfit(x)
+fit
+
+
+#adjusted p values for item fit
+p.val.BAHCS<-BAHCS.i.fit.graded.c[,5] #p values are stored in 5th column 
+p.val.BAHCS
+p.val.adjust.BAHCS<-p.adjust(p.val.BAHCS, method="BH")
+round(p.val.adjust.BAHCS, digits=3)
+#combined item fit
+cbind(BAHCS.i.fit.graded.c, round(p.val.adjust.BAHCS, digits=3))
+
+#getting out coefficients
+BAHCS.coef.graded.c<-coef(BAHCS.model.graded.c, IRTpars=TRUE)
+BAHCS.coef.graded.c<-coef(BAHCS.model.graded.c, IRTpars=TRUE, simplify = TRUE)
+
+
+BAHCS.coef.graded.c
+
+#itemplot(model.graded.c,item=3, type="infoSE")
+plot(BAHCS.model.graded.c, type='infoSE', main="BAHCS Test Information and Standard Errors")
+
+
+
+########### Compare different models
+s <- 'F1 = 1-10'
+model_comp<-mirt.model(s)
+model_comp
+#######################################################################
+######################################################################
+#fitting IRT model - pcm
+results.pcm<-mirt(clean.data[,1:10], model=model_comp, itemtype="Rasch", SE=TRUE, verbose=FALSE)
+coef.pcm <- coef(results.pcm, IRTpars=TRUE, simplify=TRUE)
+items.pcm <- as.data.frame(coef.pcm$items)
+print(items.pcm)
+results.gpcm<-mirt(clean.data[,1:10], model=model_comp, itemtype="gpcm", SE=TRUE, verbose=FALSE)
+
+BAHCS.model.graded.c
+
+anova(results.pcm, results.gpcm)
+############################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#################################Rasch Analysis in R using eRm package for BAHCS data
+
+s <- 'F1 = 1-10'
+model_comp<-mirt.model(s)
+model_comp
+#######################################################################
+######################################################################
+#fitting IRT model - pcm
+results.pcm<-mirt(clean.data[,1:10], model=model_comp, itemtype="Rasch", SE=TRUE, verbose=FALSE)
+coef.pcm <- coef(results.pcm, IRTpars=TRUE, simplify=TRUE)
+items.pcm <- as.data.frame(coef.pcm$items)
+print(items.pcm)
+
+
+
+results.gpcm<-mirt(clean.data[,1:10], model=model_comp, itemtype="gpcm", SE=TRUE, verbose=FALSE)
+coef.gpcm <- coef(results.gpcm, IRTpars=TRUE, simplify=TRUE)
+items.gpcm <- as.data.frame(coef.gpcm$items)
+print(items.gpcm)
+
+
+#check if partial credit or generalized partial credit is better
+anova(results.gpcm, results.pcm, results.rsm)
+
+
+#ratings scales model
+#fitting IRT model - ratings scale
+results.rsm<-mirt(clean.data[,1:10], model=model_comp, itemtype="rsm", SE=TRUE, verbose=FALSE)
+coef.rsm <- coef(results.rsm, IRTpars=TRUE, simplify=TRUE)
+items.rsm <- as.data.frame(coef.rsm$items)
+print(items.rsm)
+
+#graded response model
+results.graded<-mirt(clean.data[,1:10], model=model_comp, itemtype="graded", SE=TRUE, verbose=FALSE)
+coef.graded <- coef(results.graded, IRTpars=TRUE, simplify=TRUE)
+items.graded <- as.data.frame(coef.graded$items)
+print(items.graded)
+
+
+
+plot(results.graded, type = 'trace', main = "", par.settings = simpleTheme(lty=1:4,lwd=2),
+     auto.key=list(points=FALSE,lines=TRUE, columns=4)) 
+plot(results.graded, type='infoSE', main="BAHCS")
+
+
+
+
+
+comp.m2<-M2(comp.model.graded.c, type='C2')
+comp.m2
+
+coef.pcm <- coef(results.pcm, IRTpars=TRUE, simplify=TRUE)
+#We can save the estimated item parameters as a new data frame called items.pcm and print the results using the following commands:
+  
+  items.pcm <- as.data.frame(coef.pcm$items)
+print(items.pcm)
+
+itemtype="Rasch", SE=TRUE, verbose=FALSE
+
+
+comp.i.fit.graded.c<-itemfit(comp.model.graded.c)#, na.rm=TRUE)
+comp.i.fit.graded.c
+
+
+
+#adjusted p values for item fit
+p.val.comp<-comp.i.fit.graded.c[,5] #p values are stored in 5th column 
+p.val.comp
+p.val.adjust.comp<-p.adjust(p.val.comp, method="BH")
+print(p.val.adjust.comp, scipen = 999)
+
+p.val.adjust.comp(scientific=FALSE)
+
+cbind(comp.i.fit.graded.c, p.val.adjust.comp)
+
+
+
+comp.coef.graded.c<-coef(comp.model.graded.c, IRTpars=TRUE)
+comp.coef.graded.c<-coef(comp.model.graded.c, IRTpars=TRUE, simplify = TRUE)
+
+
+comp.coef.graded.c
+
+#itemplot(model.graded.c,item=3, type="infoSE")
+plot(comp.model.graded.c, type='infoSE', main="BAHCS")
+
+
+# analysis using eRm 
 library(eRm)
-```
-This is all data cleaning run first.
-First set is just loading the data
-The second set is subseting the data to just get the items
-The third set is creating a demographics data set which is the same data just with demographics
-```{r, include=FALSE}
-setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
-CIL = read.csv("CIL HCS Dataset_07172018.csv", header = TRUE)
-CKY = read.csv("CKY HCS Dataset_07172018.csv", header = TRUE)
-setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
-CILDemo = read.csv("Brief HCS - IL - Demographics - 20180813.csv", header = TRUE)
-CKYDemo = read.csv("Brief HCS - KY - Demographics - 20180813.csv", header = TRUE)
-CIL_South_HCS_tobacco_use = read.csv("CIL_South_HCS_tobacco_use.csv", header = TRUE)
-CIL_West_HCS_tobacco_use = read.csv("CIL_West_HCS_tobacco_use.csv", header = TRUE)
-CKY_HCS_tobacco_use = read.csv("CKY_HCS_tobacco_use.csv", header = TRUE)
-CIL_South_HCS_vitals = read.csv("CIL_South_HCS_vitals.csv", header = TRUE)
-CIL_West_HCS_vitals = read.csv("CIL_West_HCS_vitals.csv", header = TRUE)
-CKY_HCS_Vitals = read.csv("CKY_HCS_Vitals.csv", header = TRUE)
-CIL_South_HCS_PHQ9 = read.csv("CIL_South_HCS_PHQ9.csv", header = TRUE)
-CIL_West_HCS_PHQ9 = read.csv("CIL_West_HCS_PHQ9.csv", header = TRUE)
-CKY_HCS_PHQ9 = read.csv("CKY_HCS_PHQ9.csv", header = TRUE)
-HCS = read.csv("HCS.csv", header = TRUE)
-
-head(CIL)
-CIL = cbind(CIL[c("SourceClient_ID", "good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
-CIL$StateID = rep(0, dim(CIL)[1])
-
-CKY = cbind(CKY[c("SourceClient_ID","good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
-CKY$StateID = rep(1, dim(CKY)[1])
-
-
-CIL_CKY = data.frame(rbind(CIL, CKY))
-write.csv(CIL_CKY, "CIL_CKY.csv", row.names = FALSE)
-CIL_CKY = read.csv("CIL_CKY.csv", header = TRUE)
-head(CIL_CKY)
-dim(CIL_CKY)
-CIL_CKY$can_cook = as.integer(CIL_CKY$can_cook)
-
-#Now let us load in the demographics
-#Get rid of immigration status only Ill has it so we can rbind them
-#Then we can merge on SourceID for the full file then subset below for full analysis
-#Now merge them on 
-
-setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
-CILDemo = read.csv("Brief HCS - IL - Demographics - 20180813.csv", header = TRUE)
-CKYDemo = read.csv("Brief HCS - KY - Demographics - 20180813.csv", header = TRUE)
-CILDemo$Immigration.Status = NULL
-# need to rename without the period number 3
-head(CKYDemo)
-CIL_CKY_Demo = rbind(CILDemo, CKYDemo)
-names(CIL_CKY_Demo)[3] = "SourceClient_ID"
-dim(CIL_CKY)
-CIL_CKY_Demo = merge(CIL_CKY, CIL_CKY_Demo, by = "SourceClient_ID", all.x = TRUE)
-dim(CIL_CKY_Demo)
-```
-Getting rid of missing data that is 93 or higher, because that is planned missing data.
-```{r}
-apply(CIL_CKY_Demo, 2, function(col)sum(is.na(col))/length(col))
-
-missing_data_person = apply(CIL_CKY_Demo, 1, function(row)sum(is.na(row))/length(row))
-describe.factor(missing_data_person)
-
-CIL_CKY_Demo$missing_data_person = missing_data_person
-
-CIL_CKY_Demo = subset(CIL_CKY_Demo, missing_data_person < .9)
-dim(CIL_CKY_Demo)
-sum(is.na(CIL_CKY_Demo))
-```
-There were some clerical errors in data entry so cleaning those up 
-```{r}
-# Get rid of client ID don't need it any more
-#CIL_CKY_Demo$SourceClient_ID = NULL
-CIL_CKY_Demo$Last.Service.Date = NULL
-CIL_CKY_Demo$Source.System = NULL
-CIL_CKY_Demo$Data.Warehouse.Client.ID = NULL
-CIL_CKY_Demo$Ethnicity = NULL
-
-
-CIL_CKY_Demo$phys_activity = ifelse(CIL_CKY_Demo$phys_activity > 5, NA, ifelse(CIL_CKY_Demo$phys_activity < 1, NA, CIL_CKY_Demo$phys_activity))
-describe.factor(CIL_CKY_Demo$phys_activity)
-
-CIL_CKY_Demo$similar_goals = ifelse(CIL_CKY_Demo$similar_goals > 5, NA, ifelse(CIL_CKY_Demo$similar_goals < 1, NA, CIL_CKY_Demo$similar_goals))
-describe.factor(CIL_CKY_Demo$similar_goals)
-
-CIL_CKY_Demo$health_literacy = ifelse(CIL_CKY_Demo$health_literacy > 5, NA, ifelse(CIL_CKY_Demo$health_literacy < 1, NA, CIL_CKY_Demo$health_literacy))
-describe.factor(CIL_CKY_Demo$health_literacy)
-
-CIL_CKY_Demo$no_ED_use = ifelse(CIL_CKY_Demo$no_ED_use > 5, NA, ifelse(CIL_CKY_Demo$no_ED_use < 1, NA, CIL_CKY_Demo$no_ED_use))
-describe.factor(CIL_CKY_Demo$no_ED_use)
-
-#dropping can cook most people messed up
-CIL_CKY_Demo$can_cook = NULL
-
-CIL_CKY_Demo$has_money_for_health = ifelse(CIL_CKY_Demo$has_money_for_health > 5, NA, ifelse(CIL_CKY_Demo$has_money_for_health < 1, NA, CIL_CKY_Demo$has_money_for_health))
-describe.factor(CIL_CKY_Demo$has_money_for_health)
-
-
-CIL_CKY_Demo$job_satisfaction = ifelse(CIL_CKY_Demo $job_satisfaction > 5, NA, ifelse(CIL_CKY_Demo $job_satisfaction < 1, NA, CIL_CKY_Demo $job_satisfaction))
-describe.factor(CIL_CKY_Demo $job_satisfaction)
-
-CIL_CKY_Demo$able_to_not_smoke = ifelse(CIL_CKY_Demo$able_to_not_smoke > 5, NA, ifelse(CIL_CKY_Demo$able_to_not_smoke < 1, NA, CIL_CKY_Demo$able_to_not_smoke))
-describe.factor(CIL_CKY_Demo$able_to_not_smoke)
-
-CIL_CKY_Demo$able_to_not_use = ifelse(CIL_CKY_Demo$able_to_not_use > 5, NA, ifelse(CIL_CKY_Demo$able_to_not_use < 1, NA, CIL_CKY_Demo$able_to_not_use))
-describe.factor(CIL_CKY_Demo$able_to_not_use)
-
-CIL_CKY_Demo$similar_goals = ifelse(CIL_CKY_Demo$similar_goals < 1, NA, CIL_CKY_Demo$similar_goals)
-
-
-##3 now get rid of additional missing values
-dim(CIL_CKY_Demo)
-```
-Get the unique number of people in the sample
-For this analyses, it was unclear what the time frame was for second and third enteries (no time variable).  The first entry is the first instance and the second entry is the second instance, but other than not sure it was at 3 months, 6 months or something else.  So I just focused on the first entry, which is grabbed by using the duplicate formula below
-```{r}
-
-CIL_CKYFullUnique = CIL_CKY_Demo[!duplicated(CIL_CKY_Demo$SourceClient_ID), ]
-dim(CIL_CKYFullUnique)
-
-BAHCS_10_Items = CIL_CKYFullUnique[c("manage_health", "manage_mhealth", "similar_goals", "no_concern_side_effects", "has_money_food", "health_friendly_home", "has_transport", "social_activity" , "has_money_for_health", "ed_level_satisfaction")]
-
-   
-BAHCS_10_Demo = data.frame(BAHCS_10_Items, Age = CIL_CKYFullUnique$Age, Race = CIL_CKYFullUnique$Race, Gender = CIL_CKYFullUnique$Gender, StateID = CIL_CKYFullUnique$StateID, SourceClient_ID = CIL_CKYFullUnique$SourceClient_ID)
-
-dim(BAHCS_10_Demo)
-sum(is.na(BAHCS_10_Demo))
-
-
-```
-Subsetting for the demographics data set
-```{r}
-library(questionr)
-freq.na(BAHCS_10_Demo)
-
-apply(BAHCS_10_Demo, 2, function(col)sum(is.na(col))/length(col))
-missing_data_person = apply(CIL_CKY_Demo, 1, function(row)sum(is.na(row))/length(row))
-describe.factor(missing_data_person)
-
-BAHCS_10_Demo_Complete = na.omit(BAHCS_10_Demo)
-dim(BAHCS_10_Demo_Complete)[1]/dim(BAHCS_10_Demo)[1]
-write.csv(BAHCS_10_Demo, "BAHCS_10_Demo.csv", row.names = FALSE)
-```
-Get descriptives
-```{r}
-BAHCS_10_Demo$StateID = as.factor(BAHCS_10_Demo$StateID)
-BAHCS_10_Demo = data.frame(BAHCS_10_Demo)
+#Rasch model with missing values
+res <- RSM(clean.data[,1:10])
+res
+summary(res)
 
-describe(BAHCS_10_Demo)
-mean(BAHCS_10_Demo$manage_health, na.rm = TRUE)
-mean(BAHCS_10_Demo$manage_mhealth, na.rm = TRUE)
-mean(BAHCS_10_Demo$similar_goals, na.rm = TRUE)
-mean(BAHCS_10_Demo$no_concern_side_effects, na.rm = TRUE)
-mean(BAHCS_10_Demo$has_money_food, na.rm = TRUE)
-mean(BAHCS_10_Demo$health_friendly_home, na.rm = TRUE)
-mean(BAHCS_10_Demo$health_friendly_home, na.rm = TRUE)
-mean(BAHCS_10_Demo$has_transport, na.rm = TRUE)
-mean(BAHCS_10_Demo$social_activity, na.rm = TRUE)
-mean(BAHCS_10_Demo$has_money_for_health, na.rm = TRUE)
-mean(BAHCS_10_Demo$ed_level_satisfaction, na.rm = TRUE)
 
 
-data.frame(apply(BAHCS_10_Demo, 2, sd, na.rm = TRUE))
-```
-EFA with all items
-Try to see if a large EFA and CFA makes sense
-EFA too messy with this many dimensions
-```{r}
-efa3 = fa(r = BAHCS_10_Items, nfactors = 3, fm = "gls", cor = "poly")
-efa3
-fa.diagram(efa3)
 
-efa2 = fa(r = BAHCS_10_Items, nfactors = 2, fm = "gls", cor = "poly")
-efa2
-fa.diagram(efa2)
 
-efa1 = fa(r = BAHCS_10_Items, nfactors = 1, fm = "gls", cor = "poly")
-efa1
-fa.diagram(efa1)
 
-anova(efa3,efa1)
 
-# now try VSS
-vss(BAHCS_10_Items, n = 3, rotate = "oblimin", fm = "mle", cor = "poly")
 
-# now try paran
 
-BAHCS_10_Items_Complete = na.omit(BAHCS_10_Items)
-paran(BAHCS_10_Items_Complete, centile = 95, iterations = 1000, graph = TRUE, cfa = TRUE)
-```
-Final CFA model
-```{r}
-model1  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health + ed_level_satisfaction'
+library(eRm)
 
-fit1 = cfa(model1, estimator = "MLR", missing = "ML", data = BAHCS_10_Items)
-summary(fit1, fit.measures = TRUE, standardized = TRUE)
+data.responses<-as.data.frame(clean.data[,1:10])
+names(data.responses)
 
-```
-Model without item ten
-Included this model, because there is some evidence that item 10 is not good
-```{r}
-model_no_10  ='HCA =~ manage_health + manage_mhealth +similar_goals +no_concern_side_effects +has_money_food +health_friendly_home + has_transport + social_activity + has_money_for_health'
+data.r<-n.data[,1:10]
+names(data.r)
 
-fit_no_10 = cfa(model_no_10, estimator = "MLR", missing = "ML", data = BAHCS_10_Items)
-summary(fit_no_10, fit.measures = TRUE, standardized = TRUE)
-```
-Reliabiltiy
-```{r}
-omegaItems = omega(BAHCS_10_Items); summary(omegaItems)
-omegaItems
-```
 
-Graded response model with and without missing data
-Constrained means the discrimination parametr is equal
-```{r}
-# With missing data
-# Graded response model
-describe(BAHCS_10_Items)
-dim(BAHCS_10_Items)
+#clean data responses 
 
+head(data.responses)
 
+recoded.data<-data.frame(data.r)
+recoded.data<-revalue(data.r , c(1,2,3,4,5), c(0,1,2,3,4))
 
-fitOrdGRM = grm(data = BAHCS_10_Items, constrained = FALSE)
-fitOrdGRMCon = grm(data = BAHCS_10_Items, constrained = TRUE)
+c("1","2","3","4","5"), c("0","1","2","3","4")
 
-fitGpcm_1pl = gpcm(data = BAHCS_10_Items, constraint = c("1PL"))
-fitGpcm_2pl = gpcm(data = BAHCS_10_Items, constraint = c("gpcm"))
 
-anova(fitGpcm_1pl, fitGpcm_2pl)
-anova(fitOrdGRMCon, fitOrdGRM)
+summary(data.responses)
+summary(recoded.data)
 
-BAHCS_10_Items_Complete = na.omit(BAHCS_10_Items)
+#estimate ratings scale model
+rsm.est.F<-RSM(data.responses)
+person.F<-person.parameter(rsm.est.F)
+item.F<-itemfit(person.F)
 
-rsm_model = RSM(X = BAHCS_10_Items_Complete)
 
-anova(rsm_model, rsm_model)
 
-summary(BAHCS_10_Items)
 
-summary(fitOrdGRM)
 
-information(fitOrdGRM, c(-3, 1), items = c(10))
+#IRT on 10 items
+s <- 'F1 = 1-10'
+model_self<-mirt.model(s)
+model_self
 
-plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+#######################################################################
+######################################################################
+#fitting IRT model - graded
+model.graded.c<-mirt(data[,1:10], model=model_self, itemtype = "graded", technical=list(removeEmptyRows=TRUE))
 
-plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+model.graded.c.2<-mirt(data[,1:10], model=model_self, itemtype = "spline", technical=list(removeEmptyRows=TRUE))
+i.fit.graded.c<-itemfit(model.graded.c)#, na.rm=TRUE)
+i.fit.graded.c
 
-plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+m2<-M2(self.model.graded.c, type='C2', na.rm=TRUE)
+m2
 
-plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
-plot(fitOrdGRM, category = 5, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+model.rasch<-mirt(data[,1:10],1, itemtype="Rasch",technical=list(removeEmptyRows=TRUE))
+model.rasch
 
+itemfit(model.rasch, method='ML')
 
-vals <- plot(fitOrdGRM, type = "IIC", items = 0, plot = FALSE, zrange = c(-3,3)) 
+itemfit(model.rating)#, empirical.plot = 1) #empirical item plot
 
-sem = plot(vals[, "z"], 1 / sqrt(vals[, "test.info"]), type = "l", lwd = 2, xlab = "Ability", ylab = "Standard Error", main = "Standard Error of Measurement")
+  
+  x <- mirt(data, 1)
+raschfit <- mirt(data, 1, itemtype='Rasch')
+fit <- itemfit(x)
+fit
 
-info = plot(vals[, "z"], vals[, "test.info"], type = "l", lwd = 2, xlab = "Ability", ylab = "Test Information", main = "Test Information")
 
-fsc = factor.scores(fitOrdGRM)
-plot(fsc, include.items =TRUE)
+#adjusted p values for item fit
+p.val<-i.fit.graded.c[,5] #p values are stored in 5th column 
+p.val
+p.val.adjust<-p.adjust(p.val, method="BH")
+round(p.val.adjust, digits=3)
+#combined item fit
+cbind(self.i.fit.graded.c, round(p.val.adjust.self, digits=3))
 
-```
-ICC's for each item
-```{r}
-vals <- plot(fitOrdGRM, type = "IIC", items = c(1:10), plot = FALSE, zrange = c(-3,3)) 
-head(vals)
-z_values = vals[, "z"]
-head(vals[,-c(1)])
-vals = vals[,-c(1)]
-vals = data.frame(vals)
-names(vals)
-plot_iccs = list()
-vals_names = names(vals)
-for(i in 1:length(vals)){
-  plot_iccs[[i]] = plot(z_values, vals[[i]], type = "l", lwd = 2, xlab = "Ability", ylab = "Test Information", main = vals_names[[i]])
-}
-```
+#getting out coefficients
+coef.graded.c<-coef(self.model.graded.c, IRTpars=TRUE)
+coef.graded.c<-coef(self.model.graded.c, IRTpars=TRUE, simplify = TRUE)
 
 
-Get the margins
-Observed is just the number of people who responded in category
-Expected the (row total * column total) / n 
+coef.graded.c
 
-What the output gives us is the total residual.  So the total residual across all categories for items one and two is 65.91
-```{r}
-margins2 = margins(fitOrdGRM, "two")
-#margins2$margins
-margins3 = margins(fitOrdGRM, "three")
-#margins3
-```
-Item 10 is not so good
-```{r}
-## Item ten
+#itemplot(model.graded.c,item=3, type="infoSE")
+plot(self.model.graded.c, type='infoSE', main="BAHCS")
 
-plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
 
-plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
 
-plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
-
-plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
-```
-
-Trying eRm package 
-
-
-DIFF for items
-
-Race reference: white
-Gender refernce: male
-State reference: Illinois
-```{r}
-
-
-BAHCS_10_Demo$OtherRace  = as.factor(ifelse(BAHCS_10_Demo$Race == "WHITE OR CAUCASIAN", 0, 1))
-
-BAHCS_10_Demo$Female  = as.factor(ifelse(BAHCS_10_Demo$Gender == "MALE", 0, 1))
-
-BAHCS_10_Items
-dim(BAHCS_10_Demo)
-dim(BAHCS_10_Items)
-BAHCS_10_Items_DIF = BAHCS_10_Items
-BAHCS_10_Items_DIF$TotalScore = NULL
-
-raceDIF = lordif(resp.data = BAHCS_10_Items_DIF, group = BAHCS_10_Demo$OtherRace, criterion = "Chisqr", alpha = .01, minCell = 5)
+####################################################################
+#######################DIF Analysis
+####################################################################
+library(lordif)
+#for race, only take white and black since we shouldn't mix with others....need to make a comment that n's are very different
+race_dif<-ifelse(n.data$Race=="WHITE OR CAUCASIAN", 1, ifelse(n.data$Race=="BLACK OR AFRICAN AMERICAN",2,NA))
+raceDIF = lordif(resp.data = n.data[,1:10], group = race_dif, criterion = "Chisqr", alpha = .01, minCell = 5)
 summary(raceDIF)
 plot(raceDIF)
+# no items were flagged as DIF for race; still note unequal n
 
-genderDIF = lordif(resp.data = BAHCS_10_Items_DIF, group = BAHCS_10_Demo$Female, criterion = "Chisqr", alpha = .01, minCell = 5)
-summary(genderDIF)
-plot(genderDIF)
-
-stateDIF = lordif(resp.data = BAHCS_10_Items_DIF, group = BAHCS_10_Demo$StateID, criterion = "Chisqr", alpha = .01, minCell = 5)
-summary(stateDIF)
-plot(stateDIF)
-
-```
-####################
-Predictive validity
-####################
-Create total score for BAHCS-10
-```{r}
-BAHCS_10_DemoPred = BAHCS_10_Demo
-BAHCS_10_DemoPred = BAHCS_10_DemoPred[c(1:10)]
-head(BAHCS_10_DemoPred)
-BAHCS_10_DemoPred = rowSums(BAHCS_10_DemoPred, na.rm = TRUE)
-head(BAHCS_10_DemoPred)
-BAHCS_10_DemoPred = data.frame(BAHCS_10TotalScore = BAHCS_10_DemoPred, AvatarClient_ID = BAHCS_10_Demo$SourceClient_ID)
-head(BAHCS_10_DemoPred)
-```
-Combining Tobacco use
-Just looking at intake to be consisent
-```{r}
-head(CIL_South_HCS_tobacco_use)
-describe(CIL_South_HCS_tobacco_use)
-CIL_SouthTobac = CIL_South_HCS_tobacco_use[c("LegacyClientID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CIL_SouthTobac = subset(CIL_SouthTobac, FollowUpTimePoint == "Intake")
-describe.factor(CIL_SouthTobac$FollowUpTimePoint)
-CIL_SouthTobac$FollowUpTimePoint = NULL
-names(CIL_SouthTobac)[1] = "AvatarClient_ID"
+#DIF for Gender just 1 and 2 for males and females
+sex_dif<-ifelse(n.data$Gender=="MALE", 1, ifelse(n.data$Gender=="FEMALE",2,NA))
+summary(sex_dif)
+count(sex_dif)
+sexDIF = lordif(resp.data = n.data[,1:10], group = sex_dif, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(sexDIF)
+plot(sexDIF)
+#one item (2) was flagged with dIF
 
 
-CIL_WestTobac = CIL_West_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CIL_WestTobac = subset(CIL_WestTobac, FollowUpTimePoint == "Intake")
-describe.factor(CIL_WestTobac$FollowUpTimePoint)
-CIL_WestTobac$FollowUpTimePoint = NULL
-names(CIL_WestTobac)[1] = "AvatarClient_ID"
+# DIF on AGE
+#median age is 47 so split dif for age at 47
+age_dif<-ifelse(n.data$Age<47, 1, ifelse(n.data$Age>=47,2,NA))
+ageDIF = lordif(resp.data = n.data[,1:10], group = age_dif, criterion = "Chisqr", alpha = .01, minCell = 5)
+summary(ageDIF)
+plot(ageDIF)
+#1,6,9,10 items flagged as DIF for age
 
-
-CKYTobac = CKY_HCS_tobacco_use[c("AvatarClient_ID", "FollowUpTimePoint", "UsesTobacco_IND")]
-CKYTobac = subset(CKYTobac, FollowUpTimePoint == "Intake")
-describe.factor(CKYTobac$FollowUpTimePoint)
-CKYTobac$FollowUpTimePoint = NULL
-names(CKYTobac)[1] = "AvatarClient_ID"
-
-CIL_Kentucky_Tobac = rbind(CIL_SouthTobac, CIL_WestTobac, CKYTobac)
-
-BAHCS_10_DemoPred_Tobac = merge(BAHCS_10_DemoPred, CIL_Kentucky_Tobac, by = "AvatarClient_ID", all.x = TRUE)
-dim(BAHCS_10_DemoPred_Tobac)
-describe(BAHCS_10_DemoPred_Tobac)
-```
-Correlations with BMI and Tobacco Use and BAHCS-10
-```{r}
-library(Hmisc)
-library(ltm)
-library(psych)
-biserial(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND)
-cor.test(BAHCS_10_DemoPred_Tobac$BAHCS_10TotalScore,BAHCS_10_DemoPred_Tobac$UsesTobacco_IND)
-```
-CIL_PHQ9 Now try getting PHQ9 scores
-```{r}
-head(CIL_South_HCS_PHQ9)
-CIL_South_PHQ9 = CIL_South_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
-names(CIL_South_PHQ9)[1] = "AvatarClient_ID"
-CIL_South_PHQ9 = subset(CIL_South_PHQ9, FollowUpTimePoint == "Intake")
-
-CIL_West_PHQ9 = CIL_West_HCS_PHQ9[c("LegacyClientID", "FollowUpTimePoint", "Total_PHQ9")]
-names(CIL_West_PHQ9)[1] = "AvatarClient_ID"
-CIL_West_PHQ9 = subset(CIL_West_PHQ9, FollowUpTimePoint == "Intake")
-describe.factor(CIL_West_PHQ9$FollowUpTimePoint)
-
-
-CIL_Kentucky_PHQ9 = CKY_HCS_PHQ9[c("AvatarClient_ID", "FollowUpTimePoint", "Total_PHQ9")]
-CIL_Kentucky_PHQ9 = subset(CIL_Kentucky_PHQ9, FollowUpTimePoint == "Intake")
-
-CIL_CKY_PHQ9 = rbind(CIL_South_PHQ9, CIL_West_PHQ9, CIL_Kentucky_PHQ9)
-
-BAHCS_10_DemoPredPHQ9 = merge(BAHCS_10_DemoPred, CIL_CKY_PHQ9, by = "AvatarClient_ID", all.x = TRUE)
-describe(BAHCS_10_DemoPredPHQ9)
-
-rcorr(BAHCS_10_DemoPredPHQ9$BAHCS_10TotalScore, BAHCS_10_DemoPredPHQ9$Total_PHQ9, type = "pearson")
-
-```
