@@ -29,6 +29,8 @@ library(plyr)
 library(paran)
 library(caret)
 library(eRm)
+plot(ageDIF)
+plot(sexDIF)
 ```
 This is all data cleaning run first.
 First set is just loading the data
@@ -256,7 +258,7 @@ summary(fitOrdGRM)
 
 information(fitOrdGRM, c(-3, 1), items = c(10))
 
-plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(BAHCS.model.graded.c, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
 plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
@@ -316,6 +318,15 @@ plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy =
 plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
 
 plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
+
+
+plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
 ```
 
 Trying eRm package 
@@ -512,8 +523,6 @@ names(CKYTobac)[1] = "AvatarClient_ID"
 CIL_Kentucky_Tobac = rbind(CIL_SouthTobac, CIL_WestTobac, CKYTobac)
 head(CIL_CKY_Demo)
 
-
-
 BAHCS_10_DemoPred = CIL_CKY_Demo[,c(1,3,6,10,16,18,20,26,28, 32,33)]
 BAHCS_10_DemoPred$BAHCS_10TotalScore = rowSums(BAHCS_10_DemoPred[,2:11], na.rm = TRUE)
 names(BAHCS_10_DemoPred)[1] = "AvatarClient_ID"
@@ -550,7 +559,8 @@ CIL_CKY_PHQ9 = rbind(CIL_South_PHQ9, CIL_West_PHQ9, CIL_Kentucky_PHQ9)
 
 BAHCS_10_DemoPredPHQ9 = merge(BAHCS_10_DemoPred, CIL_CKY_PHQ9, by = "AvatarClient_ID", all.y = TRUE)
 describe(BAHCS_10_DemoPredPHQ9)
-
+BAHCS_10_DemoPredPHQ9 = na.omit(BAHCS_10_DemoPredPHQ9)
+dim(BAHCS_10_DemoPredPHQ9)
 rcorr(BAHCS_10_DemoPredPHQ9$BAHCS_10TotalScore, BAHCS_10_DemoPredPHQ9$Total_PHQ9, type = "pearson")
 
 ```
