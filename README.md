@@ -523,6 +523,8 @@ names(CKYTobac)[1] = "AvatarClient_ID"
 CIL_Kentucky_Tobac = rbind(CIL_SouthTobac, CIL_WestTobac, CKYTobac)
 head(CIL_CKY_Demo)
 
+
+
 BAHCS_10_DemoPred = CIL_CKY_Demo[,c(1,3,6,10,16,18,20,26,28, 32,33)]
 BAHCS_10_DemoPred$BAHCS_10TotalScore = rowSums(BAHCS_10_DemoPred[,2:11], na.rm = TRUE)
 names(BAHCS_10_DemoPred)[1] = "AvatarClient_ID"
