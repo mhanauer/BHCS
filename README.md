@@ -29,6 +29,8 @@ library(plyr)
 library(paran)
 library(caret)
 library(eRm)
+plot(ageDIF)
+plot(sexDIF)
 ```
 This is all data cleaning run first.
 First set is just loading the data
@@ -256,7 +258,7 @@ summary(fitOrdGRM)
 
 information(fitOrdGRM, c(-3, 1), items = c(10))
 
-plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(BAHCS.model.graded.c, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
 plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
 
@@ -316,6 +318,15 @@ plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy =
 plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
 
 plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(10))
+
+
+plot(fitOrdGRM, category = 4, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 3, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 2, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
+
+plot(fitOrdGRM, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5, cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1, items = c(6))
 ```
 
 Trying eRm package 
@@ -365,6 +376,125 @@ head(BAHCS_10_DemoPred)
 BAHCS_10_DemoPred = data.frame(BAHCS_10TotalScore = BAHCS_10_DemoPred, AvatarClient_ID = BAHCS_10_Demo$SourceClient_ID)
 head(BAHCS_10_DemoPred)
 ```
+####################################
+Pred validity
+his is all data cleaning run first.
+First set is just loading the data
+The second set is subseting the data to just get the items
+The third set is creating a demographics data set which is the same data just with demographics
+```{r, include=FALSE}
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
+CIL = read.csv("CIL HCS Dataset_07172018.csv", header = TRUE)
+CKY = read.csv("CKY HCS Dataset_07172018.csv", header = TRUE)
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
+CILDemo = read.csv("Brief HCS - IL - Demographics - 20180813.csv", header = TRUE)
+CKYDemo = read.csv("Brief HCS - KY - Demographics - 20180813.csv", header = TRUE)
+CIL_South_HCS_tobacco_use = read.csv("CIL_South_HCS_tobacco_use.csv", header = TRUE)
+CIL_West_HCS_tobacco_use = read.csv("CIL_West_HCS_tobacco_use.csv", header = TRUE)
+CKY_HCS_tobacco_use = read.csv("CKY_HCS_tobacco_use.csv", header = TRUE)
+CIL_South_HCS_vitals = read.csv("CIL_South_HCS_vitals.csv", header = TRUE)
+CIL_West_HCS_vitals = read.csv("CIL_West_HCS_vitals.csv", header = TRUE)
+CKY_HCS_Vitals = read.csv("CKY_HCS_Vitals.csv", header = TRUE)
+CIL_South_HCS_PHQ9 = read.csv("CIL_South_HCS_PHQ9.csv", header = TRUE)
+CIL_West_HCS_PHQ9 = read.csv("CIL_West_HCS_PHQ9.csv", header = TRUE)
+CKY_HCS_PHQ9 = read.csv("CKY_HCS_PHQ9.csv", header = TRUE)
+HCS = read.csv("HCS.csv", header = TRUE)
+
+head(CIL)
+CIL = cbind(CIL[c("SourceClient_ID", "good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
+CIL$StateID = rep(0, dim(CIL)[1])
+
+CKY = cbind(CKY[c("SourceClient_ID","good_health", "manage_health", "knows_conditions", "phys_activity", "manage_mhealth", "has_goals", "not_overwhelmed", "has_pcp", "similar_goals", "health_literacy", "no_future_hosp", "no_ED_use", "knows_meds", "takes_meds", "no_concern_side_effects", "can_cook", "access_nut_food", "has_money_food", "eats_nut_food", "health_friendly_home", "accessible_home", "living_sit_satisfaction", "has_home", "safe_neighborhood", "near_supports", "has_transport", "others_support_health", "social_activity", "no_one_opposes", "has_money_for_family", "manage_money", "has_money_for_health", "ed_level_satisfaction", "job_satisfaction", "able_to_not_smoke", "able_to_not_use")])
+CKY$StateID = rep(1, dim(CKY)[1])
+
+
+CIL_CKY = data.frame(rbind(CIL, CKY))
+write.csv(CIL_CKY, "CIL_CKY.csv", row.names = FALSE)
+CIL_CKY = read.csv("CIL_CKY.csv", header = TRUE)
+head(CIL_CKY)
+dim(CIL_CKY)
+CIL_CKY$can_cook = as.integer(CIL_CKY$can_cook)
+
+#Now let us load in the demographics
+#Get rid of immigration status only Ill has it so we can rbind them
+#Then we can merge on SourceID for the full file then subset below for full analysis
+#Now merge them on 
+
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/HealthCapitalScale/7-13-18HCSData")
+CILDemo = read.csv("Brief HCS - IL - Demographics - 20180813.csv", header = TRUE)
+CKYDemo = read.csv("Brief HCS - KY - Demographics - 20180813.csv", header = TRUE)
+CILDemo$Immigration.Status = NULL
+# need to rename without the period number 3
+head(CKYDemo)
+CIL_CKY_Demo = rbind(CILDemo, CKYDemo)
+names(CIL_CKY_Demo)[3] = "SourceClient_ID"
+dim(CIL_CKY)
+CIL_CKY_Demo = merge(CIL_CKY, CIL_CKY_Demo, by = "SourceClient_ID", all.x = TRUE)
+dim(CIL_CKY_Demo)
+```
+Getting rid of missing data that is 93 or higher, because that is planned missing data.
+```{r}
+library(prettyR)
+apply(CIL_CKY_Demo, 2, function(col)sum(is.na(col))/length(col))
+
+missing_data_person = apply(CIL_CKY_Demo, 1, function(row)sum(is.na(row))/length(row))
+describe.factor(missing_data_person)
+
+CIL_CKY_Demo$missing_data_person = missing_data_person
+
+CIL_CKY_Demo = subset(CIL_CKY_Demo, missing_data_person < .9)
+dim(CIL_CKY_Demo)
+sum(is.na(CIL_CKY_Demo))
+```
+There were some clerical errors in data entry so cleaning those up 
+```{r}
+# Get rid of client ID don't need it any more
+#CIL_CKY_Demo$SourceClient_ID = NULL
+CIL_CKY_Demo$Last.Service.Date = NULL
+CIL_CKY_Demo$Source.System = NULL
+CIL_CKY_Demo$Data.Warehouse.Client.ID = NULL
+CIL_CKY_Demo$Ethnicity = NULL
+
+
+CIL_CKY_Demo$phys_activity = ifelse(CIL_CKY_Demo$phys_activity > 5, NA, ifelse(CIL_CKY_Demo$phys_activity < 1, NA, CIL_CKY_Demo$phys_activity))
+describe.factor(CIL_CKY_Demo$phys_activity)
+
+CIL_CKY_Demo$similar_goals = ifelse(CIL_CKY_Demo$similar_goals > 5, NA, ifelse(CIL_CKY_Demo$similar_goals < 1, NA, CIL_CKY_Demo$similar_goals))
+describe.factor(CIL_CKY_Demo$similar_goals)
+
+CIL_CKY_Demo$health_literacy = ifelse(CIL_CKY_Demo$health_literacy > 5, NA, ifelse(CIL_CKY_Demo$health_literacy < 1, NA, CIL_CKY_Demo$health_literacy))
+describe.factor(CIL_CKY_Demo$health_literacy)
+
+CIL_CKY_Demo$no_ED_use = ifelse(CIL_CKY_Demo$no_ED_use > 5, NA, ifelse(CIL_CKY_Demo$no_ED_use < 1, NA, CIL_CKY_Demo$no_ED_use))
+describe.factor(CIL_CKY_Demo$no_ED_use)
+
+#dropping can cook most people messed up
+CIL_CKY_Demo$can_cook = NULL
+
+CIL_CKY_Demo$has_money_for_health = ifelse(CIL_CKY_Demo$has_money_for_health > 5, NA, ifelse(CIL_CKY_Demo$has_money_for_health < 1, NA, CIL_CKY_Demo$has_money_for_health))
+describe.factor(CIL_CKY_Demo$has_money_for_health)
+
+
+CIL_CKY_Demo$job_satisfaction = ifelse(CIL_CKY_Demo $job_satisfaction > 5, NA, ifelse(CIL_CKY_Demo $job_satisfaction < 1, NA, CIL_CKY_Demo $job_satisfaction))
+describe.factor(CIL_CKY_Demo $job_satisfaction)
+
+CIL_CKY_Demo$able_to_not_smoke = ifelse(CIL_CKY_Demo$able_to_not_smoke > 5, NA, ifelse(CIL_CKY_Demo$able_to_not_smoke < 1, NA, CIL_CKY_Demo$able_to_not_smoke))
+describe.factor(CIL_CKY_Demo$able_to_not_smoke)
+
+CIL_CKY_Demo$able_to_not_use = ifelse(CIL_CKY_Demo$able_to_not_use > 5, NA, ifelse(CIL_CKY_Demo$able_to_not_use < 1, NA, CIL_CKY_Demo$able_to_not_use))
+describe.factor(CIL_CKY_Demo$able_to_not_use)
+
+CIL_CKY_Demo$similar_goals = ifelse(CIL_CKY_Demo$similar_goals < 1, NA, CIL_CKY_Demo$similar_goals)
+
+
+##3 now get rid of additional missing values
+dim(CIL_CKY_Demo)
+CIL_CKY_Demo
+
+
+```
+
+
 Combining Tobacco use
 Just looking at intake to be consisent
 ```{r}
@@ -391,10 +521,17 @@ CKYTobac$FollowUpTimePoint = NULL
 names(CKYTobac)[1] = "AvatarClient_ID"
 
 CIL_Kentucky_Tobac = rbind(CIL_SouthTobac, CIL_WestTobac, CKYTobac)
+head(CIL_CKY_Demo)
 
-BAHCS_10_DemoPred_Tobac = merge(BAHCS_10_DemoPred, CIL_Kentucky_Tobac, by = "AvatarClient_ID", all.x = TRUE)
+
+
+BAHCS_10_DemoPred = CIL_CKY_Demo[,c(1,3,6,10,16,18,20,26,28, 32,33)]
+BAHCS_10_DemoPred$BAHCS_10TotalScore = rowSums(BAHCS_10_DemoPred[,2:11], na.rm = TRUE)
+names(BAHCS_10_DemoPred)[1] = "AvatarClient_ID"
+BAHCS_10_DemoPred_Tobac = merge(BAHCS_10_DemoPred, CIL_Kentucky_Tobac, by = "AvatarClient_ID", all.y = TRUE)
 dim(BAHCS_10_DemoPred_Tobac)
 describe(BAHCS_10_DemoPred_Tobac)
+dim(na.omit(BAHCS_10_DemoPred_Tobac))
 ```
 Correlations with BMI and Tobacco Use and BAHCS-10
 ```{r}
@@ -422,9 +559,10 @@ CIL_Kentucky_PHQ9 = subset(CIL_Kentucky_PHQ9, FollowUpTimePoint == "Intake")
 
 CIL_CKY_PHQ9 = rbind(CIL_South_PHQ9, CIL_West_PHQ9, CIL_Kentucky_PHQ9)
 
-BAHCS_10_DemoPredPHQ9 = merge(BAHCS_10_DemoPred, CIL_CKY_PHQ9, by = "AvatarClient_ID", all.x = TRUE)
+BAHCS_10_DemoPredPHQ9 = merge(BAHCS_10_DemoPred, CIL_CKY_PHQ9, by = "AvatarClient_ID", all.y = TRUE)
 describe(BAHCS_10_DemoPredPHQ9)
-
+BAHCS_10_DemoPredPHQ9 = na.omit(BAHCS_10_DemoPredPHQ9)
+dim(BAHCS_10_DemoPredPHQ9)
 rcorr(BAHCS_10_DemoPredPHQ9$BAHCS_10TotalScore, BAHCS_10_DemoPredPHQ9$Total_PHQ9, type = "pearson")
 
 ```
